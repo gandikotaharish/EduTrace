@@ -4,17 +4,17 @@ import { InsightCard } from "@/components/dashboard/InsightCard";
 import { MasteryRing } from "@/components/dashboard/MasteryRing";
 import { Button } from "@/components/ui/button";
 import { 
-  currentTeacher, 
   concepts, 
   sampleStudents, 
   sampleMasteryData, 
   sampleGapInsights 
 } from "@/data/sampleData";
-import { Users, AlertTriangle, TrendingDown, Target, ChevronRight } from "lucide-react";
+import { Users, AlertTriangle, TrendingDown, Target, ChevronRight, BookOpen, Award, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function TeacherDashboard() {
-  // Calculate class-level stats
+  const { userName } = useAuth();
   const classAvgMastery = sampleMasteryData.length > 0
     ? Math.round(sampleMasteryData.reduce((sum, m) => sum + m.masteryScore, 0) / sampleMasteryData.length)
     : 0;
@@ -48,8 +48,23 @@ export default function TeacherDashboard() {
     };
   });
 
+  // Get top performing students
+  const topStudents = sampleStudents.map(student => {
+    const studentMastery = sampleMasteryData.filter(m => m.studentId === student.id);
+    if (studentMastery.length === 0) return null;
+    const avg = Math.round(studentMastery.reduce((sum, m) => sum + m.masteryScore, 0) / studentMastery.length);
+    return { student, avgMastery: avg };
+  }).filter(Boolean).sort((a, b) => (b?.avgMastery || 0) - (a?.avgMastery || 0)).slice(0, 5);
+
+  // Get recent activity (simulated)
+  const recentActivity = [
+    { type: 'completion', student: sampleStudents[0]?.name || 'Student', concept: concepts[0]?.name || 'Concept', time: '2 hours ago' },
+    { type: 'struggle', student: sampleStudents[1]?.name || 'Student', concept: concepts[2]?.name || 'Concept', time: '4 hours ago' },
+    { type: 'mastery', student: sampleStudents[2]?.name || 'Student', concept: concepts[1]?.name || 'Concept', time: '5 hours ago' },
+  ];
+
   return (
-    <DashboardLayout userRole="teacher" userName={currentTeacher.name}>
+    <DashboardLayout>
       <div className="space-y-8">
         {/* Header */}
         <div>
@@ -193,6 +208,79 @@ export default function TeacherDashboard() {
                 All concepts are well understood! 🎉
               </p>
             )}
+          </div>
+        </div>
+
+        {/* Top Performers & Recent Activity */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Top Performing Students */}
+          <div className="evidence-card">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Award className="w-5 h-5 text-success" />
+              Top Performers
+            </h2>
+            <div className="space-y-3">
+              {topStudents.map((item, index) => item && (
+                <div 
+                  key={item.student.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-success/5 border border-success/20"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm",
+                      index === 0 && "bg-yellow-400 text-yellow-900",
+                      index === 1 && "bg-gray-300 text-gray-700",
+                      index === 2 && "bg-amber-600 text-amber-100",
+                      index > 2 && "bg-muted text-muted-foreground"
+                    )}>
+                      {index + 1}
+                    </div>
+                    <div className="font-medium">{item.student.name}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-success">{item.avgMastery}%</span>
+                    <Award className="w-4 h-4 text-success" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div className="evidence-card">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-info" />
+              Recent Activity
+            </h2>
+            <div className="space-y-3">
+              {recentActivity.map((activity, index) => (
+                <div 
+                  key={index}
+                  className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 border border-border"
+                >
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center mt-0.5",
+                    activity.type === 'completion' && "bg-primary/10",
+                    activity.type === 'struggle' && "bg-warning/10",
+                    activity.type === 'mastery' && "bg-success/10"
+                  )}>
+                    {activity.type === 'completion' && <BookOpen className="w-4 h-4 text-primary" />}
+                    {activity.type === 'struggle' && <AlertTriangle className="w-4 h-4 text-warning" />}
+                    {activity.type === 'mastery' && <Award className="w-4 h-4 text-success" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm">
+                      <span className="font-medium">{activity.student}</span>
+                      {activity.type === 'completion' && ' completed '}
+                      {activity.type === 'struggle' && ' is struggling with '}
+                      {activity.type === 'mastery' && ' mastered '}
+                      <span className="font-medium">{activity.concept}</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 

@@ -1,13 +1,14 @@
 import { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Brain, LayoutDashboard, BookOpen, TrendingUp, Users, Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  userRole: 'student' | 'teacher' | 'admin';
-  userName: string;
+  userRole?: 'student' | 'teacher' | 'admin';
+  userName?: string;
 }
 
 const studentNavItems = [
@@ -23,9 +24,19 @@ const teacherNavItems = [
   { icon: TrendingUp, label: 'Analytics', path: '/teacher/analytics' },
 ];
 
-export function DashboardLayout({ children, userRole, userName }: DashboardLayoutProps) {
+export function DashboardLayout({ children, userRole: propRole, userName: propName }: DashboardLayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { userRole: authRole, userName: authName, signOut } = useAuth();
+  
+  const userRole = propRole || authRole || 'student';
+  const userName = propName || authName || 'User';
   const navItems = userRole === 'student' ? studentNavItems : teacherNavItems;
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -77,11 +88,13 @@ export function DashboardLayout({ children, userRole, userName }: DashboardLayou
               <div className="text-xs text-muted-foreground capitalize">{userRole}</div>
             </div>
           </div>
-          <Button variant="ghost" className="w-full justify-start mt-2 text-sidebar-foreground hover:bg-sidebar-accent" asChild>
-            <Link to="/">
-              <LogOut className="w-4 h-4 mr-2" />
-              Exit Dashboard
-            </Link>
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start mt-2 text-sidebar-foreground hover:bg-sidebar-accent"
+            onClick={handleSignOut}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
           </Button>
         </div>
       </aside>
