@@ -42,18 +42,18 @@ export function Hero() {
             <Button 
               variant="hero" 
               size="xl" 
-              onClick={() => navigate('/student')}
+              onClick={() => navigate('/auth')}
               className="group"
             >
-              Explore as Student
+              Get Started
               <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
             </Button>
             <Button 
               variant="outline" 
               size="xl"
-              onClick={() => navigate('/teacher')}
+              onClick={() => navigate('/auth')}
             >
-              View Teacher Dashboard
+              Sign In
             </Button>
           </div>
 

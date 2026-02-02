@@ -4,20 +4,23 @@ import { ConceptCard } from "@/components/dashboard/ConceptCard";
 import { InsightCard } from "@/components/dashboard/InsightCard";
 import { Button } from "@/components/ui/button";
 import { 
-  currentStudent, 
   concepts, 
   sampleMasteryData, 
   sampleGapInsights 
 } from "@/data/sampleData";
 import { TrendingUp, Target, BookOpen, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
+  const { user, userName } = useAuth();
+  const displayName = userName || 'Student';
   
-  // Get student's mastery data
-  const studentMastery = sampleMasteryData.filter(m => m.studentId === currentStudent.id);
-  const studentInsights = sampleGapInsights.filter(i => i.studentId === currentStudent.id);
+  // For now, use first sample student's data - in production this would be user-specific
+  const sampleStudentId = 'student-1';
+  const studentMastery = sampleMasteryData.filter(m => m.studentId === sampleStudentId);
+  const studentInsights = sampleGapInsights.filter(i => i.studentId === sampleStudentId);
   
   // Calculate overall mastery
   const overallMastery = studentMastery.length > 0
@@ -40,12 +43,12 @@ export default function StudentDashboard() {
   const nextConcept = concepts.find(c => !learnedConceptIds.includes(c.id));
 
   return (
-    <DashboardLayout userRole="student" userName={currentStudent.name}>
+    <DashboardLayout>
       <div className="space-y-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Welcome back, {currentStudent.name.split(' ')[0]}!</h1>
+            <h1 className="text-3xl font-bold">Welcome back, {displayName.split(' ')[0]}!</h1>
             <p className="text-muted-foreground mt-1">Track your understanding, not just your scores.</p>
           </div>
           {nextConcept && (
