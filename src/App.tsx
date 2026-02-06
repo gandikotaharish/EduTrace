@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import StudentDashboard from "./pages/StudentDashboard";
 import AllConcepts from "./pages/AllConcepts";
+import StudentProgress from "./pages/StudentProgress";
 import ConceptLearning from "./pages/ConceptLearning";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import NotFound from "./pages/NotFound";
@@ -46,6 +47,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['student']}>
                   <ConceptLearning />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/student/progress" 
+              element={
+                <ProtectedRoute allowedRoles={['student']}>
+                  <StudentProgress />
                 </ProtectedRoute>
               } 
             />
