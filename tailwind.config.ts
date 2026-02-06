@@ -149,7 +149,7 @@ export default {
   					opacity: '0.5'
   				}
   			},
-  			'float': {
+  			float: {
   				'0%, 100%': {
   					transform: 'translateY(0)'
   				},
@@ -162,7 +162,7 @@ export default {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
   			'pulse-slow': 'pulse-slow 3s ease-in-out infinite',
-  			'float': 'float 6s ease-in-out infinite'
+  			float: 'float 6s ease-in-out infinite'
   		},
   		backgroundImage: {
   			'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
