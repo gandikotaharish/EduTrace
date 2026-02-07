@@ -12,6 +12,9 @@ import AllConcepts from "./pages/AllConcepts";
 import StudentProgress from "./pages/StudentProgress";
 import ConceptLearning from "./pages/ConceptLearning";
 import TeacherDashboard from "./pages/TeacherDashboard";
+import TeacherStudents from "./pages/TeacherStudents";
+import TeacherConcepts from "./pages/TeacherConcepts";
+import TeacherAnalytics from "./pages/TeacherAnalytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +66,30 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['teacher', 'admin']}>
                   <TeacherDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/teacher/students" 
+              element={
+                <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+                  <TeacherStudents />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/teacher/concepts" 
+              element={
+                <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+                  <TeacherConcepts />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/teacher/analytics" 
+              element={
+                <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+                  <TeacherAnalytics />
                 </ProtectedRoute>
               } 
             />
