@@ -85,7 +85,7 @@ export function DashboardLayout({ children, userRole: propRole, userName: propNa
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-sidebar-foreground truncate">{userName}</div>
-              <div className="text-xs text-muted-foreground capitalize">{userRole}</div>
+              <div className="text-xs text-sidebar-foreground/60 capitalize">{userRole}</div>
             </div>
           </div>
           <Button 
