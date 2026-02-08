@@ -1,8 +1,9 @@
-import { Concept, ConceptMastery } from "@/types";
 import { MasteryRing } from "./MasteryRing";
 import { Clock, CheckCircle, AlertCircle, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import type { Concept } from "@/hooks/useConcepts";
+import type { ConceptMastery } from "@/hooks/useStudentData";
 
 interface ConceptCardProps {
   concept: Concept;
@@ -12,8 +13,8 @@ interface ConceptCardProps {
 }
 
 export function ConceptCard({ concept, mastery, onClick, showProgress = true }: ConceptCardProps) {
-  const isCompleted = mastery && mastery.masteryScore >= 75;
-  const needsAttention = mastery && mastery.masteryScore < 55;
+  const isCompleted = mastery && mastery.mastery_score >= 75;
+  const needsAttention = mastery && mastery.mastery_score < 55;
 
   return (
     <div
@@ -35,18 +36,18 @@ export function ConceptCard({ concept, mastery, onClick, showProgress = true }: 
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
-              <span>{concept.estimatedMinutes} min</span>
+              <span>{concept.estimated_minutes} min</span>
             </div>
             {mastery && (
               <div className="flex items-center gap-1">
-                <span>Attempts: {mastery.evidenceCount}</span>
+                <span>Attempts: {mastery.evidence_count}</span>
               </div>
             )}
           </div>
         </div>
 
         {showProgress && mastery && (
-          <MasteryRing score={mastery.masteryScore} size="sm" showLabel={false} />
+          <MasteryRing score={mastery.mastery_score} size="sm" showLabel={false} />
         )}
 
         {onClick && (
@@ -56,7 +57,6 @@ export function ConceptCard({ concept, mastery, onClick, showProgress = true }: 
         )}
       </div>
 
-      {/* Trend indicator */}
       {mastery && mastery.trend !== 'stable' && (
         <div className={cn(
           "mt-4 pt-4 border-t border-border/50 text-sm",

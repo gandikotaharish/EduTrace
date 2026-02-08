@@ -3,12 +3,10 @@ import { MasteryRing } from "@/components/dashboard/MasteryRing";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  concepts, 
-  sampleMasteryData,
-  sampleGapInsights,
-  getMasteryLevel
-} from "@/data/sampleData";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useConcepts } from "@/hooks/useConcepts";
+import { useStudentMastery, useStudentInsights } from "@/hooks/useStudentData";
+import { getMasteryLevel, getMasteryColorClass } from "@/lib/mastery";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -21,34 +19,27 @@ import {
   BarChart3,
   Calendar
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 export default function StudentProgress() {
-  const { userName } = useAuth();
-  
-  // For now, use first sample student's data
-  const sampleStudentId = 'student-1';
-  const studentMastery = sampleMasteryData.filter(m => m.studentId === sampleStudentId);
-  const studentInsights = sampleGapInsights.filter(i => i.studentId === sampleStudentId);
-  
-  // Calculate stats
+  const { data: concepts = [], isLoading: conceptsLoading } = useConcepts();
+  const { data: studentMastery = [], isLoading: masteryLoading } = useStudentMastery();
+  const { data: studentInsights = [] } = useStudentInsights();
+
+  const isLoading = conceptsLoading || masteryLoading;
+
   const overallMastery = studentMastery.length > 0
-    ? Math.round(studentMastery.reduce((sum, m) => sum + m.masteryScore, 0) / studentMastery.length)
+    ? Math.round(studentMastery.reduce((sum, m) => sum + m.mastery_score, 0) / studentMastery.length)
     : 0;
   
-  const completedCount = studentMastery.filter(m => m.masteryScore >= 75).length;
-  const inProgressCount = studentMastery.filter(m => m.masteryScore > 0 && m.masteryScore < 75).length;
+  const completedCount = studentMastery.filter(m => m.mastery_score >= 75).length;
+  const inProgressCount = studentMastery.filter(m => m.mastery_score > 0 && m.mastery_score < 75).length;
   const totalConcepts = concepts.length;
-  const completionRate = Math.round((completedCount / totalConcepts) * 100);
+  const completionRate = totalConcepts > 0 ? Math.round((completedCount / totalConcepts) * 100) : 0;
   
-  // Trend analysis
   const improvingCount = studentMastery.filter(m => m.trend === 'improving').length;
-  const decliningCount = studentMastery.filter(m => m.trend === 'declining').length;
   
-  // Time stats (mock data)
-  const totalTimeSpent = studentMastery.reduce((sum, m) => sum + (m.evidenceCount * 15), 0); // ~15 min per evidence
-  const avgSessionTime = Math.round(totalTimeSpent / Math.max(studentMastery.length, 1));
+  const totalTimeSpent = studentMastery.reduce((sum, m) => sum + (m.evidence_count * 15), 0);
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
@@ -58,18 +49,23 @@ export default function StudentProgress() {
     }
   };
 
-  const getMasteryColorClass = (score: number) => {
-    if (score >= 90) return 'bg-emerald-500';
-    if (score >= 75) return 'bg-teal-500';
-    if (score >= 55) return 'bg-amber-500';
-    if (score >= 35) return 'bg-orange-500';
-    return 'bg-red-500';
-  };
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-8">
+          <Skeleton className="h-10 w-48" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)}
+          </div>
+          <Skeleton className="h-48" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold">Your Progress</h1>
           <p className="text-muted-foreground mt-1">
@@ -179,8 +175,8 @@ export default function StudentProgress() {
             <CardContent>
               <div className="space-y-4">
                 {concepts.map((concept) => {
-                  const mastery = studentMastery.find(m => m.conceptId === concept.id);
-                  const score = mastery?.masteryScore || 0;
+                  const mastery = studentMastery.find(m => m.concept_id === concept.id);
+                  const score = mastery?.mastery_score || 0;
                   const level = getMasteryLevel(score);
                   
                   return (
@@ -222,7 +218,7 @@ export default function StudentProgress() {
               {studentInsights.length > 0 ? (
                 <div className="space-y-4">
                   {studentInsights.map((insight) => {
-                    const concept = concepts.find(c => c.id === insight.conceptId);
+                    const concept = concepts.find(c => c.id === insight.concept_id);
                     
                     return (
                       <div 
@@ -247,7 +243,7 @@ export default function StudentProgress() {
                               {insight.description}
                             </p>
                             <p className="text-xs text-primary mt-2">
-                              💡 {insight.suggestedAction}
+                              💡 {insight.suggested_action}
                             </p>
                           </div>
                         </div>
@@ -259,7 +255,7 @@ export default function StudentProgress() {
                 <div className="text-center py-8 text-muted-foreground">
                   <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-success/50" />
                   <p>No learning gaps detected!</p>
-                  <p className="text-sm">Keep up the great work.</p>
+                  <p className="text-sm">Complete concepts to see personalized insights.</p>
                 </div>
               )}
             </CardContent>
@@ -275,35 +271,43 @@ export default function StudentProgress() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {studentMastery.slice(0, 5).map((mastery, index) => {
-                const concept = concepts.find(c => c.id === mastery.conceptId);
-                const level = getMasteryLevel(mastery.masteryScore);
-                
-                return (
-                  <div key={mastery.conceptId} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-2 h-2 rounded-full",
-                        getMasteryColorClass(mastery.masteryScore)
-                      )} />
-                      <div>
-                        <p className="font-medium">{concept?.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {mastery.evidenceCount} learning activities completed
-                        </p>
+            {studentMastery.length > 0 ? (
+              <div className="space-y-4">
+                {studentMastery.slice(0, 5).map((mastery) => {
+                  const concept = concepts.find(c => c.id === mastery.concept_id);
+                  const level = getMasteryLevel(mastery.mastery_score);
+                  
+                  return (
+                    <div key={mastery.concept_id} className="flex items-center justify-between py-2 border-b last:border-0">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-2 h-2 rounded-full",
+                          getMasteryColorClass(mastery.mastery_score)
+                        )} />
+                        <div>
+                          <p className="font-medium">{concept?.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {mastery.evidence_count} learning activities completed
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {getTrendIcon(mastery.trend)}
+                        <Badge variant={mastery.mastery_score >= 75 ? "default" : "secondary"}>
+                          {mastery.mastery_score}%
+                        </Badge>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {getTrendIcon(mastery.trend)}
-                      <Badge variant={mastery.masteryScore >= 75 ? "default" : "secondary"}>
-                        {mastery.masteryScore}%
-                      </Badge>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No activity yet</p>
+                <p className="text-sm">Start learning concepts to see your progress here.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

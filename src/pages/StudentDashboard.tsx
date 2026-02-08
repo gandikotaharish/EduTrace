@@ -3,44 +3,49 @@ import { MasteryRing } from "@/components/dashboard/MasteryRing";
 import { ConceptCard } from "@/components/dashboard/ConceptCard";
 import { InsightCard } from "@/components/dashboard/InsightCard";
 import { Button } from "@/components/ui/button";
-import { 
-  concepts, 
-  sampleMasteryData, 
-  sampleGapInsights 
-} from "@/data/sampleData";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useConcepts } from "@/hooks/useConcepts";
+import { useStudentMastery, useStudentInsights } from "@/hooks/useStudentData";
 import { TrendingUp, Target, BookOpen, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
-  const { user, userName } = useAuth();
+  const { userName } = useAuth();
   const displayName = userName || 'Student';
-  
-  // For now, use first sample student's data - in production this would be user-specific
-  const sampleStudentId = 'student-1';
-  const studentMastery = sampleMasteryData.filter(m => m.studentId === sampleStudentId);
-  const studentInsights = sampleGapInsights.filter(i => i.studentId === sampleStudentId);
-  
-  // Calculate overall mastery
-  const overallMastery = studentMastery.length > 0
-    ? Math.round(studentMastery.reduce((sum, m) => sum + m.masteryScore, 0) / studentMastery.length)
-    : 0;
-  
-  // Get strengths and weaknesses
-  const strengths = studentMastery
-    .filter(m => m.masteryScore >= 75)
-    .map(m => concepts.find(c => c.id === m.conceptId)!)
-    .filter(Boolean);
-  
-  const weaknesses = studentMastery
-    .filter(m => m.masteryScore < 55)
-    .map(m => concepts.find(c => c.id === m.conceptId)!)
-    .filter(Boolean);
 
-  // Next concept to learn
-  const learnedConceptIds = studentMastery.map(m => m.conceptId);
+  const { data: concepts = [], isLoading: conceptsLoading } = useConcepts();
+  const { data: studentMastery = [], isLoading: masteryLoading } = useStudentMastery();
+  const { data: studentInsights = [], isLoading: insightsLoading } = useStudentInsights();
+
+  const isLoading = conceptsLoading || masteryLoading;
+
+  const overallMastery = studentMastery.length > 0
+    ? Math.round(studentMastery.reduce((sum, m) => sum + m.mastery_score, 0) / studentMastery.length)
+    : 0;
+
+  const strengths = studentMastery.filter(m => m.mastery_score >= 75);
+  const weaknesses = studentMastery.filter(m => m.mastery_score < 55);
+
+  const learnedConceptIds = studentMastery.map(m => m.concept_id);
   const nextConcept = concepts.find(c => !learnedConceptIds.includes(c.id));
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-8">
+          <Skeleton className="h-10 w-72" />
+          <div className="grid md:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-40" />)}
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-48" />)}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -65,13 +70,11 @@ export default function StudentDashboard() {
 
         {/* Stats Overview */}
         <div className="grid md:grid-cols-4 gap-6">
-          {/* Overall Mastery */}
           <div className="evidence-card col-span-1 flex flex-col items-center justify-center py-8">
             <MasteryRing score={overallMastery} size="lg" />
             <p className="text-sm text-muted-foreground mt-4">Overall Mastery</p>
           </div>
 
-          {/* Quick Stats */}
           <div className="evidence-card col-span-1">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
@@ -82,7 +85,9 @@ export default function StudentDashboard() {
                 <div className="text-sm text-muted-foreground">Concepts Mastered</div>
               </div>
             </div>
-            <div className="text-xs text-success">Keep up the great work!</div>
+            <div className="text-xs text-success">
+              {strengths.length > 0 ? 'Keep up the great work!' : 'Start learning to master concepts'}
+            </div>
           </div>
 
           <div className="evidence-card col-span-1">
@@ -123,11 +128,11 @@ export default function StudentDashboard() {
             </h2>
             <div className="grid md:grid-cols-2 gap-4">
               {studentInsights.map((insight) => {
-                const concept = concepts.find(c => c.id === insight.conceptId);
+                const concept = concepts.find(c => c.id === insight.concept_id);
                 return (
                   <InsightCard 
                     key={insight.id} 
-                    insight={insight} 
+                    insight={insight}
                     conceptName={concept?.name}
                   />
                 );
@@ -147,7 +152,7 @@ export default function StudentDashboard() {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {concepts.slice(0, 6).map((concept) => {
-              const mastery = studentMastery.find(m => m.conceptId === concept.id);
+              const mastery = studentMastery.find(m => m.concept_id === concept.id);
               return (
                 <ConceptCard
                   key={concept.id}

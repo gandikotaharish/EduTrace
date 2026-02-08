@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { getMasteryLevel } from "@/data/sampleData";
+import { getMasteryLevel, getMasteryStrokeColor } from "@/lib/mastery";
 
 interface MasteryRingProps {
   score: number;
@@ -21,15 +21,6 @@ export function MasteryRing({ score, size = 'md', showLabel = true, className }:
   const progress = ((100 - score) / 100) * circumference;
   const { level, color } = getMasteryLevel(score);
 
-  // Get color based on mastery level
-  const getStrokeColor = () => {
-    if (score >= 90) return 'stroke-emerald-500';
-    if (score >= 75) return 'stroke-teal-500';
-    if (score >= 55) return 'stroke-amber-500';
-    if (score >= 35) return 'stroke-orange-500';
-    return 'stroke-red-500';
-  };
-
   return (
     <div className={cn("flex flex-col items-center gap-2", className)}>
       <div className="relative" style={{ width: ring, height: ring }}>
@@ -38,7 +29,6 @@ export function MasteryRing({ score, size = 'md', showLabel = true, className }:
           width={ring}
           height={ring}
         >
-          {/* Background circle */}
           <circle
             cx={ring / 2}
             cy={ring / 2}
@@ -46,21 +36,19 @@ export function MasteryRing({ score, size = 'md', showLabel = true, className }:
             strokeWidth={stroke}
             className="fill-none stroke-muted"
           />
-          {/* Progress circle */}
           <circle
             cx={ring / 2}
             cy={ring / 2}
             r={radius}
             strokeWidth={stroke}
             strokeLinecap="round"
-            className={cn("fill-none transition-all duration-500", getStrokeColor())}
+            className={cn("fill-none transition-all duration-500", getMasteryStrokeColor(score))}
             style={{
               strokeDasharray: circumference,
               strokeDashoffset: progress,
             }}
           />
         </svg>
-        {/* Score text */}
         <div className="absolute inset-0 flex items-center justify-center">
           <span className={cn("font-bold", text)}>{score}</span>
         </div>

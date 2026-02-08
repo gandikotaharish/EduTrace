@@ -2,41 +2,44 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ConceptCard } from "@/components/dashboard/ConceptCard";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { 
-  concepts, 
-  sampleMasteryData,
-  htmlSubject
-} from "@/data/sampleData";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useConcepts, useSubjects } from "@/hooks/useConcepts";
+import { useStudentMastery } from "@/hooks/useStudentData";
 import { BookOpen, CheckCircle2, Clock, Target } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 
 export default function AllConcepts() {
   const navigate = useNavigate();
-  const { userName } = useAuth();
-  
-  // For now, use first sample student's data - in production this would be user-specific
-  const sampleStudentId = 'student-1';
-  const studentMastery = sampleMasteryData.filter(m => m.studentId === sampleStudentId);
-  
-  // Calculate stats
-  const completedCount = studentMastery.filter(m => m.masteryScore >= 75).length;
-  const inProgressCount = studentMastery.filter(m => m.masteryScore > 0 && m.masteryScore < 75).length;
-  const notStartedCount = concepts.length - studentMastery.length;
-  const overallProgress = Math.round((completedCount / concepts.length) * 100);
 
-  // Group concepts by prerequisite completion
-  const getConceptStatus = (conceptId: string) => {
-    const mastery = studentMastery.find(m => m.conceptId === conceptId);
-    if (!mastery) return 'not-started';
-    if (mastery.masteryScore >= 75) return 'completed';
-    return 'in-progress';
-  };
+  const { data: concepts = [], isLoading: conceptsLoading } = useConcepts();
+  const { data: subjects = [] } = useSubjects();
+  const { data: studentMastery = [], isLoading: masteryLoading } = useStudentMastery();
+
+  const subject = subjects[0]; // First subject
+  const isLoading = conceptsLoading || masteryLoading;
+
+  const completedCount = studentMastery.filter(m => m.mastery_score >= 75).length;
+  const inProgressCount = studentMastery.filter(m => m.mastery_score > 0 && m.mastery_score < 75).length;
+  const notStartedCount = concepts.length - studentMastery.length;
+  const overallProgress = concepts.length > 0 ? Math.round((completedCount / concepts.length) * 100) : 0;
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-8">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-32" />
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-48" />)}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold">All Concepts</h1>
           <p className="text-muted-foreground mt-1">
@@ -50,9 +53,9 @@ export default function AllConcepts() {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <BookOpen className="w-5 h-5 text-primary" />
-                <h2 className="font-semibold">{htmlSubject.name}</h2>
+                <h2 className="font-semibold">{subject?.name || 'HTML Fundamentals'}</h2>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">{htmlSubject.description}</p>
+              <p className="text-sm text-muted-foreground mb-4">{subject?.description || 'Core concepts of HTML structure and semantics'}</p>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Course Progress</span>
@@ -99,9 +102,7 @@ export default function AllConcepts() {
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {concepts.map((concept) => {
-              const mastery = studentMastery.find(m => m.conceptId === concept.id);
-              const status = getConceptStatus(concept.id);
-              
+              const mastery = studentMastery.find(m => m.concept_id === concept.id);
               return (
                 <ConceptCard
                   key={concept.id}
