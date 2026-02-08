@@ -1,15 +1,21 @@
-import { GapInsight } from "@/types";
+import { GapInsight } from "@/hooks/useStudentData";
 import { AlertTriangle, Brain, Link, Lightbulb, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 interface InsightCardProps {
-  insight: GapInsight;
+  insight: {
+    id: string;
+    type: string;
+    description: string;
+    severity: string;
+    suggested_action: string;
+  };
   conceptName?: string;
   onAction?: () => void;
 }
 
-const insightConfig = {
+const insightConfig: Record<string, { icon: typeof Lightbulb; label: string; color: string; bgColor: string; borderColor: string }> = {
   fragile_understanding: {
     icon: Lightbulb,
     label: 'Fragile Understanding',
@@ -34,20 +40,20 @@ const insightConfig = {
   false_confidence: {
     icon: AlertTriangle,
     label: 'False Confidence',
-    color: 'text-accent',
+    color: 'text-accent-foreground',
     bgColor: 'bg-accent/10',
     borderColor: 'border-accent/30',
   },
 };
 
-const severityColors = {
+const severityColors: Record<string, string> = {
   low: 'bg-muted text-muted-foreground',
   medium: 'bg-warning/20 text-warning',
   high: 'bg-destructive/20 text-destructive',
 };
 
 export function InsightCard({ insight, conceptName, onAction }: InsightCardProps) {
-  const config = insightConfig[insight.type];
+  const config = insightConfig[insight.type] || insightConfig.misconception;
   const Icon = config.icon;
 
   return (
@@ -71,7 +77,7 @@ export function InsightCard({ insight, conceptName, onAction }: InsightCardProps
             </span>
             <span className={cn(
               "text-xs px-2 py-0.5 rounded-full font-medium",
-              severityColors[insight.severity]
+              severityColors[insight.severity] || severityColors.low
             )}>
               {insight.severity}
             </span>
@@ -89,7 +95,7 @@ export function InsightCard({ insight, conceptName, onAction }: InsightCardProps
 
           <div className="insight-highlight">
             <p className="text-sm text-muted-foreground">
-              <span className="font-medium">Suggested:</span> {insight.suggestedAction}
+              <span className="font-medium">Suggested:</span> {insight.suggested_action}
             </p>
           </div>
 

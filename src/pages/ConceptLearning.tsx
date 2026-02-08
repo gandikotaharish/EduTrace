@@ -1,15 +1,13 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { 
-  currentStudent, 
-  concepts, 
-  conceptContents 
-} from "@/data/sampleData";
-import { BookOpen, Lightbulb, MessageCircle, Wrench, ChevronRight, ChevronLeft, Check, Clock } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useConceptWithContent } from "@/hooks/useConcepts";
+import { useSubmitEvidence } from "@/hooks/useSubmitEvidence";
+import { BookOpen, Lightbulb, MessageCircle, Wrench, ChevronRight, ChevronLeft, Check, Clock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type LearningStep = 'explanation' | 'thinking' | 'reflection' | 'application' | 'complete';
@@ -24,22 +22,44 @@ const steps: { key: LearningStep; icon: typeof BookOpen; label: string }[] = [
 export default function ConceptLearning() {
   const { conceptId } = useParams();
   const navigate = useNavigate();
+  const { data, isLoading } = useConceptWithContent(conceptId);
+  const submitEvidence = useSubmitEvidence();
+
   const [currentStep, setCurrentStep] = useState<LearningStep>('explanation');
   const [thinkingAnswer, setThinkingAnswer] = useState('');
   const [confusionPoint, setConfusionPoint] = useState('');
+  const [mistakeDescription, setMistakeDescription] = useState('');
   const [confidence, setConfidence] = useState<number>(3);
   const [applicationAnswer, setApplicationAnswer] = useState('');
-  const [startTime] = useState(Date.now());
 
-  const concept = concepts.find(c => c.id === conceptId);
-  const content = conceptId ? conceptContents[conceptId] : null;
+  // Time tracking
+  const stepStartTime = useRef(Date.now());
+  const thinkingTime = useRef(0);
+  const applicationTime = useRef(0);
+  const thinkingAttempts = useRef(1);
+
+  const concept = data?.concept;
+  const content = data?.content;
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-96" />
+          <Skeleton className="h-64" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (!concept || !content) {
     return (
-      <DashboardLayout userRole="student" userName={currentStudent.name}>
+      <DashboardLayout>
         <div className="text-center py-20">
           <h1 className="text-2xl font-bold mb-4">Concept not found</h1>
-          <Button onClick={() => navigate('/student')}>Return to Dashboard</Button>
+          <p className="text-muted-foreground mb-6">This concept doesn't have learning content yet.</p>
+          <Button onClick={() => navigate('/student/learn')}>Browse All Concepts</Button>
         </div>
       </DashboardLayout>
     );
@@ -48,13 +68,66 @@ export default function ConceptLearning() {
   const currentStepIndex = steps.findIndex(s => s.key === currentStep);
   const progress = currentStep === 'complete' ? 100 : ((currentStepIndex + 1) / steps.length) * 100;
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    const now = Date.now();
+    const elapsed = Math.round((now - stepStartTime.current) / 1000);
+
+    if (currentStep === 'thinking') {
+      thinkingTime.current = elapsed;
+    } else if (currentStep === 'application') {
+      applicationTime.current = elapsed;
+    }
+
+    stepStartTime.current = now;
+
     const stepIndex = steps.findIndex(s => s.key === currentStep);
     if (stepIndex < steps.length - 1) {
       setCurrentStep(steps[stepIndex + 1].key);
     } else {
+      // Submit evidence to database
+      await submitEvidence.mutateAsync({
+        conceptId: concept.id,
+        thinkingAnswer,
+        thinkingTimeSeconds: thinkingTime.current,
+        thinkingAttempts: thinkingAttempts.current,
+        thinkingCorrectness: evaluateThinkingCorrectness(),
+        confusionPoint,
+        mistakeDescription,
+        confidenceScore: confidence,
+        applicationAnswer,
+        applicationTimeSeconds: applicationTime.current,
+        applicationCorrectness: evaluateApplicationCorrectness(),
+      });
       setCurrentStep('complete');
     }
+  };
+
+  const evaluateThinkingCorrectness = (): 'correct' | 'partial' | 'incorrect' => {
+    if (!content.thinking_task_expected_insights) return 'partial';
+    const answer = thinkingAnswer.toLowerCase();
+    const insights = content.thinking_task_expected_insights;
+    const matchCount = insights.filter(insight => {
+      const keywords = insight.toLowerCase().split(' ').filter(w => w.length > 4);
+      return keywords.some(keyword => answer.includes(keyword));
+    }).length;
+    const ratio = matchCount / insights.length;
+    if (ratio >= 0.6) return 'correct';
+    if (ratio >= 0.3) return 'partial';
+    return 'incorrect';
+  };
+
+  const evaluateApplicationCorrectness = (): 'correct' | 'partial' | 'incorrect' => {
+    if (!content.micro_app_rubric) return 'partial';
+    const answer = applicationAnswer.toLowerCase();
+    const rubric = content.micro_app_rubric;
+    const matchCount = rubric.filter(item => {
+      const keywords = item.toLowerCase().split(' ').filter(w => w.length > 4);
+      return keywords.some(keyword => answer.includes(keyword));
+    }).length;
+    const ratio = matchCount / rubric.length;
+    if (ratio >= 0.6) return 'correct';
+    if (ratio >= 0.3) return 'partial';
+    return 'incorrect';
   };
 
   const handlePrevious = () => {
@@ -67,28 +140,33 @@ export default function ConceptLearning() {
   const canProceed = () => {
     switch (currentStep) {
       case 'thinking':
-        return thinkingAnswer.trim().length > 20;
+        return thinkingAnswer.trim().length >= 20;
       case 'reflection':
-        return confusionPoint.trim().length > 10;
+        return confusionPoint.trim().length >= 10;
       case 'application':
-        return applicationAnswer.trim().length > 20;
+        return applicationAnswer.trim().length >= 20;
       default:
         return true;
     }
   };
 
+  const nextConceptHandler = () => {
+    // Navigate to the learning page to pick next concept
+    navigate('/student/learn');
+  };
+
   return (
-    <DashboardLayout userRole="student" userName={currentStudent.name}>
+    <DashboardLayout>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <Button 
             variant="ghost" 
             className="mb-4"
-            onClick={() => navigate('/student')}
+            onClick={() => navigate('/student/learn')}
           >
             <ChevronLeft className="w-4 h-4 mr-1" />
-            Back to Dashboard
+            Back to Concepts
           </Button>
           
           <div className="flex items-center justify-between mb-4">
@@ -98,7 +176,7 @@ export default function ConceptLearning() {
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Clock className="w-4 h-4" />
-              <span>~{concept.estimatedMinutes} min</span>
+              <span>~{concept.estimated_minutes} min</span>
             </div>
           </div>
 
@@ -170,11 +248,11 @@ export default function ConceptLearning() {
                 Thinking Task
               </h2>
               <p className="text-muted-foreground">
-                {content.thinkingTask.prompt}
+                {content.thinking_task_prompt}
               </p>
-              {content.thinkingTask.context && (
-                <pre className="bg-muted/50 p-4 rounded-lg overflow-x-auto text-sm font-mono">
-                  {content.thinkingTask.context}
+              {content.thinking_task_context && (
+                <pre className="bg-muted/50 p-4 rounded-lg overflow-x-auto text-sm font-mono whitespace-pre-wrap">
+                  {content.thinking_task_context}
                 </pre>
               )}
               <div className="space-y-2">
@@ -202,7 +280,7 @@ export default function ConceptLearning() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
-                    What part of this concept confused you the most?
+                    {content.reflection_prompts?.[0] || 'What part of this concept confused you the most?'}
                   </label>
                   <Textarea
                     placeholder="Describe any confusion or difficulty you experienced..."
@@ -212,9 +290,21 @@ export default function ConceptLearning() {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    {content.reflection_prompts?.[1] || 'What mistake did you make while working through this?'}
+                  </label>
+                  <Textarea
+                    placeholder="Describe any mistakes or misconceptions you had..."
+                    value={mistakeDescription}
+                    onChange={(e) => setMistakeDescription(e.target.value)}
+                    className="min-h-[80px]"
+                  />
+                </div>
+
                 <div className="space-y-3">
                   <label className="text-sm font-medium">
-                    How confident are you about this concept?
+                    {content.reflection_prompts?.[2] || 'How confident are you about this concept?'}
                   </label>
                   <div className="flex gap-2">
                     {[1, 2, 3, 4, 5].map((level) => (
@@ -248,20 +338,22 @@ export default function ConceptLearning() {
                 Micro Application
               </h2>
               <p className="text-muted-foreground">
-                {content.microApplication.prompt}
+                {content.micro_app_prompt}
               </p>
               
-              <div className="bg-muted/30 rounded-lg p-4">
-                <h4 className="text-sm font-medium mb-2">You'll be evaluated on:</h4>
-                <ul className="space-y-1">
-                  {content.microApplication.rubric.map((item, i) => (
-                    <li key={i} className="text-sm text-muted-foreground flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {content.micro_app_rubric && content.micro_app_rubric.length > 0 && (
+                <div className="bg-muted/30 rounded-lg p-4">
+                  <h4 className="text-sm font-medium mb-2">You'll be evaluated on:</h4>
+                  <ul className="space-y-1">
+                    {content.micro_app_rubric.map((item, i) => (
+                      <li key={i} className="text-sm text-muted-foreground flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Your Solution</label>
@@ -271,6 +363,9 @@ export default function ConceptLearning() {
                   onChange={(e) => setApplicationAnswer(e.target.value)}
                   className="min-h-[150px] font-mono"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Write at least 20 characters to continue ({applicationAnswer.length}/20)
+                </p>
               </div>
             </div>
           )}
@@ -282,13 +377,13 @@ export default function ConceptLearning() {
               </div>
               <h2 className="text-2xl font-bold mb-2">Concept Complete!</h2>
               <p className="text-muted-foreground mb-6">
-                Your learning evidence has been captured. Keep going!
+                Your learning evidence has been captured and your mastery score updated.
               </p>
               <div className="flex gap-4 justify-center">
                 <Button variant="outline" onClick={() => navigate('/student')}>
                   Back to Dashboard
                 </Button>
-                <Button variant="hero">
+                <Button variant="hero" onClick={nextConceptHandler}>
                   Next Concept
                   <ChevronRight className="w-4 h-4" />
                 </Button>
@@ -311,10 +406,19 @@ export default function ConceptLearning() {
             <Button
               variant="hero"
               onClick={handleNext}
-              disabled={!canProceed()}
+              disabled={!canProceed() || submitEvidence.isPending}
             >
-              {currentStepIndex === steps.length - 1 ? 'Complete' : 'Continue'}
-              <ChevronRight className="w-4 h-4" />
+              {submitEvidence.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  {currentStepIndex === steps.length - 1 ? 'Complete' : 'Continue'}
+                  <ChevronRight className="w-4 h-4" />
+                </>
+              )}
             </Button>
           </div>
         )}
