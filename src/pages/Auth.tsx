@@ -37,6 +37,8 @@ export default function Auth() {
       const from = (location.state as any)?.from?.pathname;
       if (from) {
         navigate(from, { replace: true });
+      } else if (userRole === 'admin') {
+        navigate('/admin', { replace: true });
       } else if (userRole === 'student') {
         navigate('/student', { replace: true });
       } else if (userRole === 'teacher') {

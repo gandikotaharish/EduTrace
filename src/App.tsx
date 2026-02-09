@@ -15,6 +15,12 @@ import TeacherDashboard from "./pages/TeacherDashboard";
 import TeacherStudents from "./pages/TeacherStudents";
 import TeacherConcepts from "./pages/TeacherConcepts";
 import TeacherAnalytics from "./pages/TeacherAnalytics";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminSchools from "./pages/AdminSchools";
+import AdminTeachers from "./pages/AdminTeachers";
+import AdminStudents from "./pages/AdminStudents";
+import AdminSubjects from "./pages/AdminSubjects";
+import ProfileSettings from "./pages/ProfileSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,71 +35,29 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            <Route 
-              path="/student" 
-              element={
-                <ProtectedRoute allowedRoles={['student']}>
-                  <StudentDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/student/learn" 
-              element={
-                <ProtectedRoute allowedRoles={['student']}>
-                  <AllConcepts />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/student/learn/:conceptId" 
-              element={
-                <ProtectedRoute allowedRoles={['student']}>
-                  <ConceptLearning />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/student/progress" 
-              element={
-                <ProtectedRoute allowedRoles={['student']}>
-                  <StudentProgress />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/teacher" 
-              element={
-                <ProtectedRoute allowedRoles={['teacher', 'admin']}>
-                  <TeacherDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/teacher/students" 
-              element={
-                <ProtectedRoute allowedRoles={['teacher', 'admin']}>
-                  <TeacherStudents />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/teacher/concepts" 
-              element={
-                <ProtectedRoute allowedRoles={['teacher', 'admin']}>
-                  <TeacherConcepts />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/teacher/analytics" 
-              element={
-                <ProtectedRoute allowedRoles={['teacher', 'admin']}>
-                  <TeacherAnalytics />
-                </ProtectedRoute>
-              } 
-            />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            
+            {/* Student Routes */}
+            <Route path="/student" element={<ProtectedRoute allowedRoles={['student']}><StudentDashboard /></ProtectedRoute>} />
+            <Route path="/student/learn" element={<ProtectedRoute allowedRoles={['student']}><AllConcepts /></ProtectedRoute>} />
+            <Route path="/student/learn/:conceptId" element={<ProtectedRoute allowedRoles={['student']}><ConceptLearning /></ProtectedRoute>} />
+            <Route path="/student/progress" element={<ProtectedRoute allowedRoles={['student']}><StudentProgress /></ProtectedRoute>} />
+            
+            {/* Teacher Routes */}
+            <Route path="/teacher" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><TeacherDashboard /></ProtectedRoute>} />
+            <Route path="/teacher/students" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><TeacherStudents /></ProtectedRoute>} />
+            <Route path="/teacher/concepts" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><TeacherConcepts /></ProtectedRoute>} />
+            <Route path="/teacher/analytics" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><TeacherAnalytics /></ProtectedRoute>} />
+            
+            {/* Admin Routes */}
+            <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/schools" element={<ProtectedRoute allowedRoles={['admin']}><AdminSchools /></ProtectedRoute>} />
+            <Route path="/admin/teachers" element={<ProtectedRoute allowedRoles={['admin']}><AdminTeachers /></ProtectedRoute>} />
+            <Route path="/admin/students" element={<ProtectedRoute allowedRoles={['admin']}><AdminStudents /></ProtectedRoute>} />
+            <Route path="/admin/subjects" element={<ProtectedRoute allowedRoles={['admin']}><AdminSubjects /></ProtectedRoute>} />
+            
+            {/* Shared Routes */}
+            <Route path="/settings" element={<ProtectedRoute><ProfileSettings /></ProtectedRoute>} />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
