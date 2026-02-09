@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Brain, LayoutDashboard, BookOpen, TrendingUp, Users, Settings, LogOut } from "lucide-react";
+import { Brain, LayoutDashboard, BookOpen, TrendingUp, Users, Settings, LogOut, School, GraduationCap, BarChart3, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ const studentNavItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/student' },
   { icon: BookOpen, label: 'Learn', path: '/student/learn' },
   { icon: TrendingUp, label: 'Progress', path: '/student/progress' },
+  { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
 const teacherNavItems = [
@@ -22,6 +23,16 @@ const teacherNavItems = [
   { icon: Users, label: 'Students', path: '/teacher/students' },
   { icon: BookOpen, label: 'Concepts', path: '/teacher/concepts' },
   { icon: TrendingUp, label: 'Analytics', path: '/teacher/analytics' },
+  { icon: Settings, label: 'Settings', path: '/settings' },
+];
+
+const adminNavItems = [
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
+  { icon: School, label: 'Schools', path: '/admin/schools' },
+  { icon: Users, label: 'Teachers', path: '/admin/teachers' },
+  { icon: GraduationCap, label: 'Students', path: '/admin/students' },
+  { icon: BookOpen, label: 'Subjects', path: '/admin/subjects' },
+  { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
 export function DashboardLayout({ children, userRole: propRole, userName: propName }: DashboardLayoutProps) {
@@ -31,7 +42,7 @@ export function DashboardLayout({ children, userRole: propRole, userName: propNa
   
   const userRole = propRole || authRole || 'student';
   const userName = propName || authName || 'User';
-  const navItems = userRole === 'student' ? studentNavItems : teacherNavItems;
+  const navItems = userRole === 'admin' ? adminNavItems : userRole === 'teacher' ? teacherNavItems : studentNavItems;
 
   const handleSignOut = async () => {
     await signOut();
@@ -51,6 +62,16 @@ export function DashboardLayout({ children, userRole: propRole, userName: propNa
             <span className="text-xl font-bold text-sidebar-foreground">EduTrace</span>
           </Link>
         </div>
+
+        {/* Role badge */}
+        {userRole === 'admin' && (
+          <div className="px-6 pt-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sidebar-primary/20 text-sidebar-primary text-xs font-semibold">
+              <Shield className="w-3 h-3" />
+              PLATFORM ADMIN
+            </div>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 p-4">

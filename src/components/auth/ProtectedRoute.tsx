@@ -27,8 +27,9 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
-    // Redirect to appropriate dashboard based on role
-    if (userRole === 'student') {
+    if (userRole === 'admin') {
+      return <Navigate to="/admin" replace />;
+    } else if (userRole === 'student') {
       return <Navigate to="/student" replace />;
     } else if (userRole === 'teacher') {
       return <Navigate to="/teacher" replace />;
