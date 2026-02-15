@@ -1,11 +1,13 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { usePlatformStats } from '@/hooks/useAdminData';
-import { School, Users, GraduationCap, BookOpen, TrendingUp, Activity, Shield, BarChart3 } from 'lucide-react';
+import { usePlatformStats, usePlatformMonitoring } from '@/hooks/useAdminData';
+import { School, Users, GraduationCap, BookOpen, TrendingUp, Activity, Shield, BarChart3, AlertTriangle, Building2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export default function AdminDashboard() {
   const { data: stats, isLoading } = usePlatformStats();
+  const { data: monitoring, isLoading: monitoringLoading } = usePlatformMonitoring();
 
   const statCards = [
     { label: 'Total Schools', value: stats?.totalSchools || 0, icon: School, color: 'text-blue-500', bg: 'bg-blue-500/10' },
@@ -75,6 +77,76 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Platform Monitoring */}
+        {monitoring && (monitoring.difficultConcepts.length > 0 || monitoring.masteryBySchool.some((s) => s.avg_mastery != null)) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  Most Difficult Concepts (by avg mastery)
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">Concepts with lowest average mastery across the platform</p>
+              </CardHeader>
+              <CardContent>
+                {monitoringLoading ? (
+                  <Skeleton className="h-32 w-full" />
+                ) : monitoring.difficultConcepts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No mastery data yet.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Concept</TableHead>
+                        <TableHead className="text-right">Avg Mastery</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {monitoring.difficultConcepts.map((c) => (
+                        <TableRow key={c.concept_id}>
+                          <TableCell className="font-medium">{c.name}</TableCell>
+                          <TableCell className="text-right">{c.avg_mastery ?? '—'}%</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-primary" />
+                  Average Mastery by School
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">Aggregated by school (no student-level detail)</p>
+              </CardHeader>
+              <CardContent>
+                {monitoringLoading ? (
+                  <Skeleton className="h-32 w-full" />
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>School</TableHead>
+                        <TableHead className="text-right">Avg Mastery</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {monitoring.masteryBySchool.map((s) => (
+                        <TableRow key={s.school_id}>
+                          <TableCell className="font-medium">{s.school_name}</TableCell>
+                          <TableCell className="text-right">{s.avg_mastery != null ? `${s.avg_mastery}%` : '—'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

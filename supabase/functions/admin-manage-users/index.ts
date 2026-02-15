@@ -71,6 +71,14 @@ Deno.serve(async (req) => {
           });
         }
 
+        const uid = newUser.user.id;
+        const r = role === "admin" || role === "teacher" || role === "student" ? role : "student";
+        await adminClient.from("profiles").upsert({ user_id: uid, full_name: full_name || newUser.user.email?.split("@")[0] || "User" }, { onConflict: "user_id" });
+        const { data: existingRole } = await adminClient.from("user_roles").select("id").eq("user_id", uid).maybeSingle();
+        if (!existingRole) {
+          await adminClient.from("user_roles").insert({ user_id: uid, role: r });
+        }
+
         return new Response(JSON.stringify({ user: newUser.user }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

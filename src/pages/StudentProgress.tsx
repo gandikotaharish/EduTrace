@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConcepts } from "@/hooks/useConcepts";
 import { useStudentMastery, useStudentInsights } from "@/hooks/useStudentData";
+import { useVoiceContext } from "@/hooks/useVoiceContext";
 import { getMasteryLevel, getMasteryColorClass } from "@/lib/mastery";
 import { 
   TrendingUp, 
@@ -22,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export default function StudentProgress() {
+  useVoiceContext(null);
   const { data: concepts = [], isLoading: conceptsLoading } = useConcepts();
   const { data: studentMastery = [], isLoading: masteryLoading } = useStudentMastery();
   const { data: studentInsights = [] } = useStudentInsights();

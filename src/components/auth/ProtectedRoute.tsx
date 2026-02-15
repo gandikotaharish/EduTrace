@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, userRole, loading } = useAuth();
+  const { user, userRole, loading, forcePasswordReset } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -24,6 +24,10 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  if (forcePasswordReset && location.pathname !== '/settings') {
+    return <Navigate to="/settings" replace />;
   }
 
   if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {

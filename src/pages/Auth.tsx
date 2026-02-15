@@ -216,10 +216,16 @@ export default function Auth() {
 
           <CardContent className="pt-4">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsList className={cn("grid w-full mb-6", selectedRole === 'student' ? "grid-cols-1" : "grid-cols-2")}>
                 <TabsTrigger value="login">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                {selectedRole !== 'student' && <TabsTrigger value="signup">Sign Up</TabsTrigger>}
               </TabsList>
+
+              {selectedRole === 'student' && (
+                <p className="text-sm text-muted-foreground mb-4 rounded-lg bg-muted/50 p-3">
+                  Students cannot self-register. Get your login credentials (email and temporary password) from your class teacher. Use them to sign in below, then change your password when prompted.
+                </p>
+              )}
 
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">

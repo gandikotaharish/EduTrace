@@ -1,9 +1,11 @@
 import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Brain, LayoutDashboard, BookOpen, TrendingUp, Users, Settings, LogOut, School, GraduationCap, BarChart3, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -11,38 +13,42 @@ interface DashboardLayoutProps {
   userName?: string;
 }
 
-const studentNavItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/student' },
-  { icon: BookOpen, label: 'Learn', path: '/student/learn' },
-  { icon: TrendingUp, label: 'Progress', path: '/student/progress' },
-  { icon: Settings, label: 'Settings', path: '/settings' },
+const studentNavKeys = [
+  { icon: LayoutDashboard, labelKey: 'dashboard', path: '/student' },
+  { icon: BookOpen, labelKey: 'learn', path: '/student/learn' },
+  { icon: TrendingUp, labelKey: 'progress', path: '/student/progress' },
+  { icon: Settings, labelKey: 'settings', path: '/settings' },
 ];
 
-const teacherNavItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/teacher' },
-  { icon: Users, label: 'Students', path: '/teacher/students' },
-  { icon: BookOpen, label: 'Concepts', path: '/teacher/concepts' },
-  { icon: TrendingUp, label: 'Analytics', path: '/teacher/analytics' },
-  { icon: Settings, label: 'Settings', path: '/settings' },
+const teacherNavKeys = [
+  { icon: LayoutDashboard, labelKey: 'dashboard', path: '/teacher' },
+  { icon: School, labelKey: 'myClasses', path: '/teacher/classes' },
+  { icon: Users, labelKey: 'students', path: '/teacher/students' },
+  { icon: BookOpen, labelKey: 'concepts', path: '/teacher/concepts' },
+  { icon: TrendingUp, labelKey: 'analytics', path: '/teacher/analytics' },
+  { icon: Settings, labelKey: 'settings', path: '/settings' },
 ];
 
-const adminNavItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
-  { icon: School, label: 'Schools', path: '/admin/schools' },
-  { icon: Users, label: 'Teachers', path: '/admin/teachers' },
-  { icon: GraduationCap, label: 'Students', path: '/admin/students' },
-  { icon: BookOpen, label: 'Subjects', path: '/admin/subjects' },
-  { icon: Settings, label: 'Settings', path: '/settings' },
+const adminNavKeys = [
+  { icon: LayoutDashboard, labelKey: 'dashboard', path: '/admin' },
+  { icon: School, labelKey: 'schools', path: '/admin/schools' },
+  { icon: Users, labelKey: 'teachers', path: '/admin/teachers' },
+  { icon: GraduationCap, labelKey: 'students', path: '/admin/students' },
+  { icon: BookOpen, labelKey: 'subjects', path: '/admin/subjects' },
+  { icon: Settings, labelKey: 'settings', path: '/settings' },
 ];
 
 export function DashboardLayout({ children, userRole: propRole, userName: propName }: DashboardLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { userRole: authRole, userName: authName, signOut } = useAuth();
   
   const userRole = propRole || authRole || 'student';
   const userName = propName || authName || 'User';
-  const navItems = userRole === 'admin' ? adminNavItems : userRole === 'teacher' ? teacherNavItems : studentNavItems;
+  const navItems = (userRole === 'admin' ? adminNavKeys : userRole === 'teacher' ? teacherNavKeys : studentNavKeys).map(
+    (item) => ({ ...item, label: t(item.labelKey) })
+  );
 
   const handleSignOut = async () => {
     await signOut();
@@ -59,7 +65,7 @@ export function DashboardLayout({ children, userRole: propRole, userName: propNa
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sidebar-primary to-info flex items-center justify-center">
               <Brain className="w-5 h-5 text-sidebar-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-sidebar-foreground">EduTrace</span>
+            <span className="text-xl font-bold text-sidebar-foreground">{t('appName')}</span>
           </Link>
         </div>
 
@@ -108,6 +114,7 @@ export function DashboardLayout({ children, userRole: propRole, userName: propNa
               <div className="text-sm font-medium text-sidebar-foreground truncate">{userName}</div>
               <div className="text-xs text-sidebar-foreground/60 capitalize">{userRole}</div>
             </div>
+            <LanguageSelector />
           </div>
           <Button 
             variant="ghost" 
@@ -115,7 +122,7 @@ export function DashboardLayout({ children, userRole: propRole, userName: propNa
             onClick={handleSignOut}
           >
             <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
+            {t('signOut')}
           </Button>
         </div>
       </aside>

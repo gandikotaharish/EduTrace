@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useSchools, useCreateSchool, useUpdateSchool, useClasses, useCreateClass, useUpdateClass } from '@/hooks/useAdminData';
-import { School, Plus, Pencil, Loader2, MapPin, Building, BookOpen } from 'lucide-react';
+import { useSchools, useCreateSchool, useUpdateSchool, useClasses, useCreateClass, useUpdateClass, useStudentAssignments, useTeacherAssignments, useClassTeacherAssignments, useSetClassTeacher, useAdminUsers } from '@/hooks/useAdminData';
+import { School, Plus, Pencil, Loader2, MapPin, Building, BookOpen, UserCheck } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const academicLevels = ['K-12', 'Primary', 'Secondary', 'High School', 'University'];
@@ -17,10 +17,18 @@ const academicLevels = ['K-12', 'Primary', 'Secondary', 'High School', 'Universi
 export default function AdminSchools() {
   const { data: schools, isLoading } = useSchools();
   const { data: classes } = useClasses();
+  const { data: studentAssignments } = useStudentAssignments();
+  const { data: teacherAssignments } = useTeacherAssignments();
   const createSchool = useCreateSchool();
   const updateSchool = useUpdateSchool();
   const createClass = useCreateClass();
   const updateClass = useUpdateClass();
+  const { data: classTeachers } = useClassTeacherAssignments();
+  const setClassTeacher = useSetClassTeacher();
+  const { data: allUsers } = useAdminUsers();
+  const teachers = allUsers?.filter((u: { role: string }) => u.role === 'teacher') || [];
+  const [showClassTeacherDialog, setShowClassTeacherDialog] = useState<{ classId: string; className: string } | null>(null);
+  const [selectedTeacherId, setSelectedTeacherId] = useState('');
 
   const [showSchoolDialog, setShowSchoolDialog] = useState(false);
   const [showClassDialog, setShowClassDialog] = useState(false);
@@ -173,6 +181,8 @@ export default function AdminSchools() {
                     <TableHead>Location</TableHead>
                     <TableHead>Level</TableHead>
                     <TableHead>Classes</TableHead>
+                    <TableHead>Students</TableHead>
+                    <TableHead>Teachers</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -180,6 +190,8 @@ export default function AdminSchools() {
                 <TableBody>
                   {schools.map((school) => {
                     const schoolClasses = classes?.filter(c => c.school_id === school.id) || [];
+                    const schoolStudentIds = new Set((studentAssignments || []).filter((a: { school_id: string }) => a.school_id === school.id).map((a: { student_id: string }) => a.student_id));
+                    const schoolTeacherIds = new Set((teacherAssignments || []).filter((a: { school_id: string }) => a.school_id === school.id).map((a: { teacher_id: string }) => a.teacher_id));
                     return (
                       <TableRow key={school.id}>
                         <TableCell className="font-medium">
@@ -198,6 +210,8 @@ export default function AdminSchools() {
                         </TableCell>
                         <TableCell><Badge variant="outline">{school.academic_level}</Badge></TableCell>
                         <TableCell>{schoolClasses.length}</TableCell>
+                        <TableCell>{schoolStudentIds.size}</TableCell>
+                        <TableCell>{schoolTeacherIds.size}</TableCell>
                         <TableCell>
                           <Badge variant={school.is_active ? 'default' : 'secondary'}>
                             {school.is_active ? 'Active' : 'Inactive'}
@@ -245,17 +259,24 @@ export default function AdminSchools() {
                     <TableHead>School</TableHead>
                     <TableHead>Grade</TableHead>
                     <TableHead>Section</TableHead>
+                    <TableHead>Class Teacher</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {classes.map((cls: any) => (
+                  {classes.map((cls: { id: string; name: string; schools?: { name: string }; grade_level?: string; section?: string; is_active: boolean }) => {
+                    const cta = classTeachers?.find((ct: { class_id: string }) => ct.class_id === cls.id);
+                    const teacher = cta ? teachers.find((t: { user_id: string }) => t.user_id === (cta as { teacher_id: string }).teacher_id) : null;
+                    return (
                     <TableRow key={cls.id}>
                       <TableCell className="font-medium">{cls.name}</TableCell>
                       <TableCell>{cls.schools?.name || '—'}</TableCell>
                       <TableCell>{cls.grade_level || '—'}</TableCell>
                       <TableCell>{cls.section || '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {teacher ? teacher.full_name : '—'}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={cls.is_active ? 'default' : 'secondary'}>
                           {cls.is_active ? 'Active' : 'Inactive'}
@@ -265,18 +286,57 @@ export default function AdminSchools() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          title="Assign class teacher"
+                          onClick={() => { setShowClassTeacherDialog({ classId: cls.id, className: cls.name }); setSelectedTeacherId(cta ? (cta as { teacher_id: string }).teacher_id : ''); }}
+                        >
+                          <UserCheck className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => updateClass.mutate({ id: cls.id, is_active: !cls.is_active })}
                         >
                           {cls.is_active ? 'Deactivate' : 'Activate'}
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ); })}
                 </TableBody>
               </Table>
             )}
           </CardContent>
         </Card>
+
+        {/* Assign Class Teacher Dialog */}
+        <Dialog open={!!showClassTeacherDialog} onOpenChange={(o) => { if (!o) setShowClassTeacherDialog(null); }}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Assign Class Teacher</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">Class: {showClassTeacherDialog?.className}</p>
+            <div className="space-y-2 py-4">
+              <Label>Class Teacher</Label>
+              <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId}>
+                <SelectTrigger><SelectValue placeholder="Select teacher" /></SelectTrigger>
+                <SelectContent>
+                  {teachers.map((t: { user_id: string; full_name: string }) => (
+                    <SelectItem key={t.user_id} value={t.user_id}>{t.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowClassTeacherDialog(null)}>Cancel</Button>
+              <Button onClick={() => {
+                if (showClassTeacherDialog && selectedTeacherId) {
+                  setClassTeacher.mutate({ class_id: showClassTeacherDialog.classId, teacher_id: selectedTeacherId });
+                  setShowClassTeacherDialog(null);
+                }
+              }} disabled={!selectedTeacherId || setClassTeacher.isPending}>
+                {setClassTeacher.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Assign
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

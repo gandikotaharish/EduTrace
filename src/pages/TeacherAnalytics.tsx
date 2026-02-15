@@ -4,12 +4,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useConcepts } from "@/hooks/useConcepts";
 import { useAllStudents, useAllMastery, useAllInsights } from "@/hooks/useTeacherData";
+import { useTeacherAIInsights } from "@/hooks/useTeacherAIInsights";
 import { getMasteryLevel } from "@/lib/mastery";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line,
 } from "recharts";
-import { TrendingUp, TrendingDown, Users, BookOpen, AlertTriangle, Brain, Target, Award } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, TrendingDown, Users, BookOpen, AlertTriangle, Brain, Target, Award, Sparkles, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function TeacherAnalytics() {
@@ -17,6 +19,7 @@ export default function TeacherAnalytics() {
   const { data: students = [], isLoading: sLoading } = useAllStudents();
   const { data: allMastery = [], isLoading: mLoading } = useAllMastery();
   const { data: allInsights = [] } = useAllInsights();
+  const { data: aiInsights, isLoading: aiLoading } = useTeacherAIInsights();
 
   const isLoading = cLoading || sLoading || mLoading;
 
@@ -59,10 +62,34 @@ export default function TeacherAnalytics() {
 
   const hasData = allMastery.length > 0;
 
+  const exportCsv = () => {
+    const headers = ['Student', 'Concept', 'Mastery %', 'Trend', 'Evidence count'];
+    const rows = allMastery.map(m => {
+      const student = students.find(s => s.user_id === m.student_id);
+      const concept = concepts.find(c => c.id === m.concept_id);
+      return [student?.full_name ?? m.student_id, concept?.name ?? m.concept_id, m.mastery_score, m.trend, m.evidence_count];
+    });
+    const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `student-learning-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div><h1 className="text-3xl font-bold">Analytics</h1><p className="text-muted-foreground mt-1">Deep insights into class performance, trends, and learning gaps</p></div>
+        <div className="flex items-center justify-between">
+          <div><h1 className="text-3xl font-bold">Analytics</h1><p className="text-muted-foreground mt-1">Deep insights into class performance, trends, and learning gaps</p></div>
+          {hasData && (
+            <Button variant="outline" onClick={exportCsv}>
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+          )}
+        </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="evidence-card"><div className="flex items-center gap-3"><MasteryRing score={classAvg} size="sm" showLabel={false} /><div><div className="text-2xl font-bold">{classAvg}%</div><div className="text-sm text-muted-foreground">Class Average</div></div></div></div>
@@ -70,6 +97,50 @@ export default function TeacherAnalytics() {
           <div className="evidence-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center"><TrendingDown className="w-5 h-5 text-destructive" /></div><div><div className="text-2xl font-bold">{declining}</div><div className="text-sm text-muted-foreground">Declining</div></div></div></div>
           <div className="evidence-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><Target className="w-5 h-5 text-primary" /></div><div><div className="text-2xl font-bold">{completionRate}%</div><div className="text-sm text-muted-foreground">Completion Rate</div></div></div></div>
         </div>
+
+        {hasData && aiInsights && (
+          <div className="evidence-card border-primary/20 bg-primary/5">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              AI Class Summary
+            </h2>
+            <p className="text-muted-foreground mb-4">{aiInsights.summary}</p>
+            {aiInsights.needsReteaching.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-sm font-medium mb-2">Concepts that may need re-teaching</h4>
+                <div className="flex flex-wrap gap-2">
+                  {aiInsights.needsReteaching.map((c) => (
+                    <Badge key={c} variant="secondary">{c}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {aiInsights.falseConfidenceAlerts.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-sm font-medium mb-2">False confidence alerts</h4>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  {aiInsights.falseConfidenceAlerts.slice(0, 5).map((a, i) => (
+                    <li key={i}>{a.conceptName}: {a.studentCount} students — {a.description}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {aiInsights.studentRiskPredictions.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2">Student risk (top 5)</h4>
+                <ul className="text-sm space-y-1">
+                  {aiInsights.studentRiskPredictions.slice(0, 5).map((s, i) => (
+                    <li key={i} className="flex justify-between">
+                      <span>{s.studentName}</span>
+                      <span className="text-muted-foreground">Risk {s.riskScore}% — {s.reason}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        {aiLoading && hasData && <div className="evidence-card"><div className="animate-pulse h-24 rounded bg-muted" /></div>}
 
         {!hasData ? (
           <div className="evidence-card text-center py-12">

@@ -16,9 +16,9 @@ import { useSubjects } from '@/hooks/useConcepts';
 import { Users, Plus, Loader2, KeyRound, UserX, UserCheck, Link2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { z } from 'zod';
+import { validatePassword, PASSWORD_RULES } from '@/lib/password';
 
 const emailSchema = z.string().email();
-const passwordSchema = z.string().min(8, 'Min 8 characters');
 
 export default function AdminTeachers() {
   const { data: allUsers, isLoading } = useAdminUsers();
@@ -47,7 +47,8 @@ export default function AdminTeachers() {
     const newErrors: Record<string, string> = {};
     if (!form.full_name.trim()) newErrors.name = 'Required';
     try { emailSchema.parse(form.email); } catch { newErrors.email = 'Invalid email'; }
-    try { passwordSchema.parse(form.password); } catch (e: any) { newErrors.password = e.errors?.[0]?.message || 'Invalid'; }
+    const pwdCheck = validatePassword(form.password);
+    if (!pwdCheck.valid) newErrors.password = pwdCheck.message;
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
 
@@ -57,7 +58,7 @@ export default function AdminTeachers() {
   };
 
   const handleResetPassword = async () => {
-    if (!showResetDialog || newPassword.length < 8) return;
+    if (!showResetDialog || !validatePassword(newPassword).valid) return;
     await resetPassword.mutateAsync({ user_id: showResetDialog, new_password: newPassword });
     setShowResetDialog(null);
     setNewPassword('');
@@ -104,7 +105,7 @@ export default function AdminTeachers() {
                 </div>
                 <div className="space-y-2">
                   <Label>Password *</Label>
-                  <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Min 8 characters" />
+                  <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={PASSWORD_RULES} />
                   {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                 </div>
               </div>
@@ -199,14 +200,15 @@ export default function AdminTeachers() {
       <Dialog open={!!showResetDialog} onOpenChange={(o) => { if (!o) setShowResetDialog(null); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Reset Password</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">{PASSWORD_RULES}</p>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>New Password</Label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min 8 characters" />
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password" />
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleResetPassword} disabled={resetPassword.isPending || newPassword.length < 8}>
+            <Button onClick={handleResetPassword} disabled={resetPassword.isPending || !validatePassword(newPassword).valid}>
               {resetPassword.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               Reset Password
             </Button>

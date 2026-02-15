@@ -1,4 +1,5 @@
-import { Brain } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Brain, Shield } from "lucide-react";
 
 export function Footer() {
   return (
@@ -16,8 +17,12 @@ export function Footer() {
             Helping schools see understanding, not just marks.
           </p>
           
-          <div className="text-sm text-muted-foreground">
-            © 2026 EduTrace. Evidence-Based Learning Intelligence.
+          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+            <Link to="/auth/admin" className="flex items-center gap-1.5 hover:text-sidebar-foreground transition-colors">
+              <Shield className="w-4 h-4" />
+              Platform Admin
+            </Link>
+            <span>© 2026 EduTrace. Evidence-Based Learning Intelligence.</span>
           </div>
         </div>
       </div>

@@ -5,18 +5,26 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConcepts, useAllConceptContent } from "@/hooks/useConcepts";
-import { useAllStudents, useAllMastery, useAllInsights } from "@/hooks/useTeacherData";
+import { useAllStudents, useAllMastery, useAllInsights, useTeacherMyAssignments } from "@/hooks/useTeacherData";
+import { useAuth } from "@/contexts/AuthContext";
 import { getMasteryColorClass, getMasteryLevel } from "@/lib/mastery";
 import { BookOpen, Clock, Users, AlertTriangle, ChevronDown, ChevronUp, Layers, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function TeacherConcepts() {
   const [expandedConcept, setExpandedConcept] = useState<string | null>(null);
-  const { data: concepts = [], isLoading: cLoading } = useConcepts();
+  const { userRole } = useAuth();
+  const { data: allConcepts = [], isLoading: cLoading } = useConcepts();
+  const { data: myAssignments = [] } = useTeacherMyAssignments();
   const { data: allContent = [] } = useAllConceptContent();
   const { data: students = [] } = useAllStudents();
   const { data: allMastery = [], isLoading: mLoading } = useAllMastery();
   const { data: allInsights = [] } = useAllInsights();
+
+  const assignedSubjectIds = userRole === 'teacher' ? [...new Set((myAssignments || []).map((a: { subject_id: string | null }) => a.subject_id).filter(Boolean))] as string[] : null;
+  const concepts = userRole === 'teacher' && assignedSubjectIds && assignedSubjectIds.length > 0
+    ? allConcepts.filter((c) => assignedSubjectIds.includes(c.subject_id))
+    : allConcepts;
 
   const isLoading = cLoading || mLoading;
 

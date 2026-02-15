@@ -5,11 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConcepts, useSubjects } from "@/hooks/useConcepts";
 import { useStudentMastery } from "@/hooks/useStudentData";
+import { useVoiceContext } from "@/hooks/useVoiceContext";
 import { BookOpen, CheckCircle2, Clock, Target } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function AllConcepts() {
   const navigate = useNavigate();
+  useVoiceContext(null);
 
   const { data: concepts = [], isLoading: conceptsLoading } = useConcepts();
   const { data: subjects = [] } = useSubjects();

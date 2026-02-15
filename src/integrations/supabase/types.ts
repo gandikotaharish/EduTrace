@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       classes: {
         Row: {
+          academic_year_id: string | null
           created_at: string
           grade_level: string | null
           id: string
@@ -26,6 +27,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          academic_year_id?: string | null
           created_at?: string
           grade_level?: string | null
           id?: string
@@ -36,6 +38,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          academic_year_id?: string | null
           created_at?: string
           grade_level?: string | null
           id?: string
@@ -374,27 +377,33 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          force_password_reset: boolean
           full_name: string
           id: string
           is_active: boolean
+          password_changed_at: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          force_password_reset?: boolean
           full_name: string
           id?: string
           is_active?: boolean
+          password_changed_at?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
+          force_password_reset?: boolean
           full_name?: string
           id?: string
           is_active?: boolean
+          password_changed_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -427,6 +436,174 @@ export type Database = {
           location?: string | null
           name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      academic_years: {
+        Row: {
+          id: string
+          school_id: string
+          name: string
+          start_date: string
+          end_date: string
+          is_current: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          school_id: string
+          name: string
+          start_date: string
+          end_date: string
+          is_current?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          school_id?: string
+          name?: string
+          start_date?: string
+          end_date?: string
+          is_current?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      class_teacher_assignments: {
+        Row: {
+          id: string
+          class_id: string
+          teacher_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          class_id: string
+          teacher_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          class_id?: string
+          teacher_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      intervention_log: {
+        Row: {
+          id: string
+          student_id: string
+          class_id: string
+          teacher_id: string
+          type: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          class_id: string
+          teacher_id: string
+          type: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          class_id?: string
+          teacher_id?: string
+          type?: string
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      attendance: {
+        Row: {
+          id: string
+          student_id: string
+          class_id: string
+          date: string
+          status: string
+          recorded_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          class_id: string
+          date: string
+          status?: string
+          recorded_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          class_id?: string
+          date?: string
+          status?: string
+          recorded_by?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      performance_flags: {
+        Row: {
+          id: string
+          student_id: string
+          teacher_id: string
+          type: string
+          description: string | null
+          severity: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          teacher_id: string
+          type: string
+          description?: string | null
+          severity?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          teacher_id?: string
+          type?: string
+          description?: string | null
+          severity?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      credential_batches: {
+        Row: {
+          id: string
+          class_id: string
+          teacher_id: string
+          student_count: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          class_id: string
+          teacher_id: string
+          student_count?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          class_id?: string
+          teacher_id?: string
+          student_count?: number
+          created_at?: string
         }
         Relationships: []
       }

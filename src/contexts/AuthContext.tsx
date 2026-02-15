@@ -10,10 +10,12 @@ interface AuthContextType {
   session: Session | null;
   userRole: UserRole | null;
   userName: string | null;
+  forcePasswordReset: boolean;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  clearForcePasswordReset: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [forcePasswordReset, setForcePasswordReset] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -41,10 +44,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserRole(roleData.role as UserRole);
       }
 
-      // Fetch profile
+      // Fetch profile (including is_active and force_password_reset)
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, is_active, force_password_reset')
         .eq('user_id', userId)
         .maybeSingle();
 
@@ -52,6 +55,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Error fetching profile:', profileError);
       } else if (profileData) {
         setUserName(profileData.full_name);
+        setForcePasswordReset(profileData.force_password_reset === true);
+        if (profileData.is_active === false) {
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+          setUserRole(null);
+          setUserName(null);
+          toast({ title: 'Account disabled', description: 'Your account has been deactivated. Contact your administrator.', variant: 'destructive' });
+          return;
+        }
       }
     } catch (err) {
       console.error('Error fetching user details:', err);
@@ -73,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setUserRole(null);
           setUserName(null);
+          setForcePasswordReset(false);
         }
         
         setLoading(false);
@@ -163,10 +177,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setUserRole(null);
     setUserName(null);
+    setForcePasswordReset(false);
     toast({
       title: "Signed out",
       description: "You have been signed out successfully.",
     });
+  };
+
+  const clearForcePasswordReset = async () => {
+    if (!user?.id) return;
+    await supabase.from('profiles').update({ force_password_reset: false, password_changed_at: new Date().toISOString() }).eq('user_id', user.id);
+    setForcePasswordReset(false);
   };
 
   return (
@@ -175,10 +196,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       userRole,
       userName,
+      forcePasswordReset,
       loading,
       signUp,
       signIn,
       signOut,
+      clearForcePasswordReset,
     }}>
       {children}
     </AuthContext.Provider>

@@ -291,6 +291,42 @@ export function useDeleteStudentAssignment() {
   });
 }
 
+// ============ Class Teacher Assignments ============
+
+export function useClassTeacherAssignments() {
+  const { userRole } = useAuth();
+  return useQuery({
+    queryKey: ['class-teacher-assignments'],
+    enabled: userRole === 'admin' || userRole === 'teacher',
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('class_teacher_assignments')
+        .select('*, classes(name, school_id)');
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useSetClassTeacher() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ class_id, teacher_id }: { class_id: string; teacher_id: string }) => {
+      const { error } = await supabase
+        .from('class_teacher_assignments')
+        .upsert({ class_id, teacher_id }, { onConflict: 'class_id' });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['class-teacher-assignments'] });
+      qc.invalidateQueries({ queryKey: ['admin-classes'] });
+      toast({ title: 'Class teacher assigned' });
+    },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+}
+
 // ============ Platform Stats ============
 
 export function usePlatformStats() {
@@ -322,6 +358,69 @@ export function usePlatformStats() {
           : 0,
         totalEvidence: evidenceRes.data?.length || 0,
       };
+    },
+  });
+}
+
+// Platform monitoring: difficult concepts (lowest avg mastery), avg mastery per school
+export function usePlatformMonitoring() {
+  const { userRole } = useAuth();
+  return useQuery({
+    queryKey: ['admin-platform-monitoring'],
+    enabled: userRole === 'admin',
+    queryFn: async () => {
+      const [masteryRes, conceptsRes, schoolsRes, studentAssignmentsRes] = await Promise.all([
+        supabase.from('concept_mastery').select('concept_id, mastery_score, student_id'),
+        supabase.from('concepts').select('id, name'),
+        supabase.from('schools').select('id, name'),
+        supabase.from('student_assignments').select('student_id, school_id'),
+      ]);
+      const mastery = masteryRes.data || [];
+      const concepts = conceptsRes.data || [];
+      const schools = schoolsRes.data || [];
+      const studentAssignments = studentAssignmentsRes.data || [];
+
+      const conceptScores: Record<string, number[]> = {};
+      mastery.forEach((m) => {
+        if (!conceptScores[m.concept_id]) conceptScores[m.concept_id] = [];
+        conceptScores[m.concept_id].push(m.mastery_score);
+      });
+      const difficultConcepts = concepts
+        .map((c) => ({
+          concept_id: c.id,
+          name: c.name,
+          avg_mastery: conceptScores[c.id]?.length
+            ? Math.round(
+                conceptScores[c.id].reduce((a, b) => a + b, 0) / conceptScores[c.id].length
+              )
+            : null,
+        }))
+        .filter((c) => c.avg_mastery != null)
+        .sort((a, b) => (a.avg_mastery ?? 0) - (b.avg_mastery ?? 0))
+        .slice(0, 10);
+
+      const studentToSchool: Record<string, string> = {};
+      studentAssignments.forEach((a) => {
+        studentToSchool[a.student_id] = a.school_id;
+      });
+      const schoolScores: Record<string, number[]> = {};
+      mastery.forEach((m) => {
+        const sid = studentToSchool[m.student_id];
+        if (!sid) return;
+        if (!schoolScores[sid]) schoolScores[sid] = [];
+        schoolScores[sid].push(m.mastery_score);
+      });
+      const masteryBySchool = schools.map((s) => ({
+        school_id: s.id,
+        school_name: s.name,
+        avg_mastery: schoolScores[s.id]?.length
+          ? Math.round(
+              schoolScores[s.id].reduce((a, b) => a + b, 0) / schoolScores[s.id].length
+            )
+          : null,
+      }));
+
+      return { difficultConcepts, masteryBySchool };
     },
   });
 }

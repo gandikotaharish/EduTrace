@@ -8,12 +8,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, User, KeyRound, Shield } from 'lucide-react';
-import { z } from 'zod';
-
-const passwordSchema = z.string().min(8, 'Password must be at least 8 characters');
+import { validatePassword, PASSWORD_RULES } from '@/lib/password';
 
 export default function ProfileSettings() {
-  const { user, userRole, userName } = useAuth();
+  const { user, userRole, userName, forcePasswordReset, clearForcePasswordReset } = useAuth();
   const { toast } = useToast();
 
   const [fullName, setFullName] = useState(userName || '');
@@ -43,7 +41,8 @@ export default function ProfileSettings() {
   const handleChangePassword = async () => {
     const errors: Record<string, string> = {};
     if (!currentPassword) errors.current = 'Current password is required';
-    try { passwordSchema.parse(newPassword); } catch (e: any) { errors.new = e.errors[0].message; }
+    const pwdCheck = validatePassword(newPassword);
+    if (!pwdCheck.valid) errors.new = pwdCheck.message;
     if (newPassword !== confirmPassword) errors.confirm = 'Passwords do not match';
     setPasswordErrors(errors);
     if (Object.keys(errors).length) return;
@@ -67,6 +66,7 @@ export default function ProfileSettings() {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      await clearForcePasswordReset();
       toast({ title: 'Password changed successfully' });
       setCurrentPassword('');
       setNewPassword('');
@@ -79,10 +79,19 @@ export default function ProfileSettings() {
       <div className="max-w-2xl mx-auto space-y-8">
         <div>
           <h1 className="text-3xl font-bold">Profile Settings</h1>
-          <p className="text-muted-foreground mt-1">Manage your account settings and preferences</p>
+          <p className="text-muted-foreground mt-1">
+            {forcePasswordReset ? 'You must change your password before continuing.' : 'Manage your account settings and preferences'}
+          </p>
         </div>
 
-        {/* Profile Info */}
+        {forcePasswordReset && (
+          <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">
+            Change your temporary password below. You will not be able to access other pages until this is done.
+          </div>
+        )}
+
+        {/* Profile Info - hide when force password reset */}
+        {!forcePasswordReset && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -114,6 +123,7 @@ export default function ProfileSettings() {
             </Button>
           </CardContent>
         </Card>
+        )}
 
         {/* Change Password */}
         <Card>
@@ -122,7 +132,7 @@ export default function ProfileSettings() {
               <KeyRound className="w-5 h-5" />
               Change Password
             </CardTitle>
-            <CardDescription>Update your password to keep your account secure</CardDescription>
+            <CardDescription>Update your password to keep your account secure. {PASSWORD_RULES}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -132,7 +142,7 @@ export default function ProfileSettings() {
             </div>
             <div className="space-y-2">
               <Label>New Password</Label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min 8 characters" />
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min 8 characters, 1 letter, 1 number" />
               {passwordErrors.new && <p className="text-sm text-destructive">{passwordErrors.new}</p>}
             </div>
             <div className="space-y-2">

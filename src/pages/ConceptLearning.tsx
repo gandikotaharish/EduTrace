@@ -12,6 +12,7 @@ import { IntegrityBadge } from "@/components/integrity/IntegrityBadge";
 import { useConceptWithContent } from "@/hooks/useConcepts";
 import { useSubmitEvidence } from "@/hooks/useSubmitEvidence";
 import { useLogViolation, useIntegrityScore } from "@/hooks/useIntegrity";
+import { useVoiceContext } from "@/hooks/useVoiceContext";
 import { BookOpen, Lightbulb, MessageCircle, Wrench, ChevronRight, ChevronLeft, Check, Clock, Loader2, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +55,12 @@ export default function ConceptLearning() {
 
   const concept = data?.concept;
   const content = data?.content;
+
+  useVoiceContext(
+    concept && content
+      ? { conceptName: concept.name, conceptExplanation: content.explanation }
+      : null
+  );
 
   const isActiveStep = currentStep === 'thinking' || currentStep === 'reflection' || currentStep === 'application';
 

@@ -27,7 +27,7 @@ export default function AdminSubjects() {
   const [showConceptDialog, setShowConceptDialog] = useState(false);
   const [subjectForm, setSubjectForm] = useState({ name: '', description: '', icon_name: 'BookOpen', color: 'primary' });
   const [conceptForm, setConceptForm] = useState({
-    subject_id: '', name: '', description: '', estimated_minutes: '15', sort_order: '1',
+    subject_id: '', name: '', description: '', estimated_minutes: '15', sort_order: '1', prerequisite_ids: [] as string[],
   });
   const [saving, setSaving] = useState(false);
 
@@ -60,6 +60,7 @@ export default function AdminSubjects() {
       description: conceptForm.description,
       estimated_minutes: parseInt(conceptForm.estimated_minutes) || 15,
       sort_order: parseInt(conceptForm.sort_order) || 1,
+      prerequisite_ids: conceptForm.prerequisite_ids.length > 0 ? conceptForm.prerequisite_ids : null,
     });
     setSaving(false);
     if (error) {
@@ -69,7 +70,7 @@ export default function AdminSubjects() {
     toast({ title: 'Concept created' });
     qc.invalidateQueries({ queryKey: ['concepts'] });
     setShowConceptDialog(false);
-    setConceptForm({ subject_id: '', name: '', description: '', estimated_minutes: '15', sort_order: '1' });
+    setConceptForm({ subject_id: '', name: '', description: '', estimated_minutes: '15', sort_order: '1', prerequisite_ids: [] });
   };
 
   return (
@@ -114,6 +115,38 @@ export default function AdminSubjects() {
                       <Label>Sort Order</Label>
                       <Input type="number" value={conceptForm.sort_order} onChange={(e) => setConceptForm({ ...conceptForm, sort_order: e.target.value })} />
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Prerequisites (optional)</Label>
+                    <Select
+                      value=""
+                      onValueChange={(v) => {
+                        if (v && !conceptForm.prerequisite_ids.includes(v)) {
+                          setConceptForm({ ...conceptForm, prerequisite_ids: [...conceptForm.prerequisite_ids, v] });
+                        }
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Add prerequisite concept" /></SelectTrigger>
+                      <SelectContent>
+                        {concepts
+                          .filter((c) => c.subject_id === conceptForm.subject_id && c.id !== conceptForm.subject_id)
+                          .map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    {conceptForm.prerequisite_ids.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {conceptForm.prerequisite_ids.map((id) => {
+                          const pr = concepts.find((c) => c.id === id);
+                          return (
+                            <Badge key={id} variant="secondary" className="cursor-pointer" onClick={() => setConceptForm({ ...conceptForm, prerequisite_ids: conceptForm.prerequisite_ids.filter((x) => x !== id) })}>
+                              {pr?.name || id} ×
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <DialogFooter>

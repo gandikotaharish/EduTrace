@@ -12,12 +12,14 @@ import {
   useAdminUsers, useCreateUser, useResetPassword, useToggleUserActive,
   useSchools, useClasses, useStudentAssignments, useCreateStudentAssignment, useDeleteStudentAssignment,
 } from '@/hooks/useAdminData';
-import { GraduationCap, Plus, Loader2, KeyRound, UserX, UserCheck, Link2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { GraduationCap, Plus, Loader2, KeyRound, UserX, UserCheck, Link2, Upload } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { z } from 'zod';
+import { useToast } from '@/hooks/use-toast';
+import { validatePassword, PASSWORD_RULES } from '@/lib/password';
 
 const emailSchema = z.string().email();
-const passwordSchema = z.string().min(8);
 
 export default function AdminStudents() {
   const { data: allUsers, isLoading } = useAdminUsers();
@@ -41,6 +43,11 @@ export default function AdminStudents() {
   const [assignForm, setAssignForm] = useState({ school_id: '', class_id: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [showBulkDialog, setShowBulkDialog] = useState(false);
+  const [bulkCsv, setBulkCsv] = useState("");
+  const [bulkDefaultPassword, setBulkDefaultPassword] = useState("");
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number; errors: string[] } | null>(null);
+  const { toast } = useToast();
 
   const filteredStudents = students.filter(s =>
     s.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -51,7 +58,7 @@ export default function AdminStudents() {
     const newErrors: Record<string, string> = {};
     if (!form.full_name.trim()) newErrors.name = 'Required';
     try { emailSchema.parse(form.email); } catch { newErrors.email = 'Invalid email'; }
-    try { passwordSchema.parse(form.password); } catch { newErrors.password = 'Min 8 characters'; }
+    if (!validatePassword(form.password).valid) newErrors.password = validatePassword(form.password).message;
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
 
@@ -61,7 +68,7 @@ export default function AdminStudents() {
   };
 
   const handleResetPassword = async () => {
-    if (!showResetDialog || newPassword.length < 8) return;
+    if (!showResetDialog || !validatePassword(newPassword).valid) return;
     await resetPassword.mutateAsync({ user_id: showResetDialog, new_password: newPassword });
     setShowResetDialog(null);
     setNewPassword('');
@@ -80,6 +87,48 @@ export default function AdminStudents() {
 
   const filteredClasses = classes?.filter(c => c.school_id === assignForm.school_id) || [];
 
+  const parseCsv = (text: string): { email: string; full_name: string; password?: string }[] => {
+    const lines = text.trim().split(/\r?\n/).filter(Boolean);
+    if (lines.length < 2) return [];
+    const header = lines[0].toLowerCase().split(',').map((h) => h.trim());
+    const emailIdx = header.findIndex((h) => h === 'email' || h === 'email address');
+    const nameIdx = header.findIndex((h) => h === 'name' || h === 'full_name' || h === 'full name');
+    const pwdIdx = header.findIndex((h) => h === 'password');
+    if (emailIdx < 0) return [];
+    return lines.slice(1).map((line) => {
+      const cols = line.split(',').map((c) => c.trim().replace(/^["']|["']$/g, ''));
+      return {
+        email: cols[emailIdx] || '',
+        full_name: nameIdx >= 0 ? cols[nameIdx] || cols[emailIdx]?.split('@')[0] || 'Student' : cols[emailIdx]?.split('@')[0] || 'Student',
+        password: pwdIdx >= 0 && cols[pwdIdx] ? cols[pwdIdx] : undefined,
+      };
+    }).filter((r) => r.email);
+  };
+
+  const handleBulkUpload = async () => {
+    const defaultPwd = bulkDefaultPassword.trim() || 'ChangeMe123!';
+    const rows = parseCsv(bulkCsv);
+    if (rows.length === 0) {
+      toast({ title: 'Invalid CSV', description: 'Need at least a header with "email" and one data row.', variant: 'destructive' });
+      return;
+    }
+    setBulkProgress({ done: 0, total: rows.length, errors: [] });
+    const errs: string[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const password = row.password || defaultPwd;
+      try {
+        await createUser.mutateAsync({ email: row.email, password, full_name: row.full_name, role: 'student' });
+      } catch (e: unknown) {
+        errs.push(`Row ${i + 2}: ${row.email} — ${e instanceof Error ? e.message : 'Error'}`);
+      }
+      setBulkProgress((p) => p ? { ...p, done: i + 1, errors: errs } : null);
+    }
+    setBulkProgress((p) => p ? { ...p, errors: errs } : null);
+    toast({ title: 'Bulk upload done', description: `${rows.length - errs.length} created, ${errs.length} failed.` });
+    if (errs.length === 0) setShowBulkDialog(false);
+  };
+
   return (
     <DashboardLayout userRole="admin">
       <div className="space-y-8">
@@ -88,6 +137,37 @@ export default function AdminStudents() {
             <h1 className="text-3xl font-bold">Student Management</h1>
             <p className="text-muted-foreground mt-1">Create, manage, and assign students to classes</p>
           </div>
+          <Dialog open={showBulkDialog} onOpenChange={(o) => { setShowBulkDialog(o); if (!o) setBulkProgress(null); }}>
+            <DialogTrigger asChild>
+              <Button variant="outline"><Upload className="w-4 h-4 mr-2" />Bulk upload CSV</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader><DialogTitle>Bulk Create Students (CSV)</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground">CSV must have header with <strong>email</strong> and optionally <strong>name</strong> (or full_name), <strong>password</strong>. Otherwise a default password is used.</p>
+              <div className="space-y-2">
+                <Label>Default password (if column not in CSV)</Label>
+                <Input type="password" value={bulkDefaultPassword} onChange={(e) => setBulkDefaultPassword(e.target.value)} placeholder="e.g. ChangeMe123!" />
+              </div>
+              <Textarea value={bulkCsv} onChange={(e) => setBulkCsv(e.target.value)} placeholder="email,full_name,password&#10;alex@school.edu,Alex Johnson,&#10;jane@school.edu,Jane Doe," className="min-h-[120px] font-mono text-sm" />
+              {bulkProgress && (
+                <div className="text-sm">
+                  <p>Progress: {bulkProgress.done} / {bulkProgress.total}</p>
+                  {bulkProgress.errors.length > 0 && (
+                    <div className="mt-2 max-h-24 overflow-y-auto text-destructive text-xs">
+                      {bulkProgress.errors.map((e, i) => <div key={i}>{e}</div>)}
+                    </div>
+                  )}
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowBulkDialog(false)}>Cancel</Button>
+                <Button onClick={handleBulkUpload} disabled={bulkProgress !== null && bulkProgress.done < bulkProgress.total}>
+                  {bulkProgress && bulkProgress.done < bulkProgress.total ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  Upload
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
               <Button><Plus className="w-4 h-4 mr-2" />Create Student</Button>
@@ -107,7 +187,7 @@ export default function AdminStudents() {
                 </div>
                 <div className="space-y-2">
                   <Label>Password *</Label>
-                  <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Min 8 characters" />
+                  <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={PASSWORD_RULES} />
                   {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                 </div>
               </div>
@@ -211,14 +291,15 @@ export default function AdminStudents() {
       <Dialog open={!!showResetDialog} onOpenChange={(o) => { if (!o) setShowResetDialog(null); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Reset Password</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">{PASSWORD_RULES}</p>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>New Password</Label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min 8 characters" />
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password" />
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleResetPassword} disabled={resetPassword.isPending || newPassword.length < 8}>
+            <Button onClick={handleResetPassword} disabled={resetPassword.isPending || !validatePassword(newPassword).valid}>
               {resetPassword.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               Reset Password
             </Button>
