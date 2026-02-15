@@ -2,11 +2,13 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ConceptHeatmap } from "@/components/dashboard/ConceptHeatmap";
 import { InsightCard } from "@/components/dashboard/InsightCard";
 import { MasteryRing } from "@/components/dashboard/MasteryRing";
+import { IntegrityBadge } from "@/components/integrity/IntegrityBadge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConcepts } from "@/hooks/useConcepts";
 import { useAllStudents, useAllMastery, useAllInsights, useAllEvidence } from "@/hooks/useTeacherData";
-import { Users, AlertTriangle, TrendingDown, Target, ChevronRight, BookOpen, Award, Clock } from "lucide-react";
+import { useAllIntegrityScores } from "@/hooks/useIntegrity";
+import { Users, AlertTriangle, TrendingDown, Target, ChevronRight, BookOpen, Award, Clock, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +21,7 @@ export default function TeacherDashboard() {
   const { data: allMastery = [], isLoading: mLoading } = useAllMastery();
   const { data: allInsights = [] } = useAllInsights();
   const { data: allEvidence = [] } = useAllEvidence();
+  const { data: allIntegrity = [] } = useAllIntegrityScores();
 
   const isLoading = cLoading || sLoading || mLoading;
 
@@ -66,6 +69,14 @@ export default function TeacherDashboard() {
       time: new Date(ev.created_at).toLocaleDateString(),
     };
   });
+
+  // Integrity alerts: students with low integrity or high confidence + wrong answers
+  const integrityAlerts = allIntegrity
+    .filter(s => s.score < 60)
+    .map(s => {
+      const student = students.find(st => st.user_id === s.student_id);
+      return { ...s, studentName: student?.full_name || 'Student' };
+    });
 
   if (isLoading) {
     return (
@@ -115,12 +126,43 @@ export default function TeacherDashboard() {
           </div>
           <div className="evidence-card">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center"><TrendingDown className="w-5 h-5 text-destructive" /></div>
-              <div className="text-2xl font-bold">{weakConcepts.length}</div>
+              <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center"><ShieldAlert className="w-5 h-5 text-destructive" /></div>
+              <div className="text-2xl font-bold">{integrityAlerts.length}</div>
             </div>
-            <div className="text-sm text-muted-foreground">Weak Concepts</div>
+            <div className="text-sm text-muted-foreground">Integrity Alerts</div>
           </div>
         </div>
+
+        {/* Integrity Alerts Section */}
+        {integrityAlerts.length > 0 && (
+          <div className="evidence-card border-destructive/30">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-destructive" />
+              Academic Integrity Alerts
+            </h2>
+            <div className="space-y-3">
+              {integrityAlerts.map((alert) => (
+                <div key={alert.student_id} className="flex items-center justify-between p-4 rounded-lg bg-destructive/5 border border-destructive/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-destructive/50 to-destructive flex items-center justify-center text-destructive-foreground font-semibold text-sm">
+                      {alert.studentName.split(' ').map(n => n[0]).join('')}
+                    </div>
+                    <div>
+                      <div className="font-medium">{alert.studentName}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {alert.paste_attempts > 0 && `${alert.paste_attempts} paste attempts • `}
+                        {alert.suspicious_entries > 0 && `${alert.suspicious_entries} suspicious entries • `}
+                        {alert.tab_switches > 0 && `${alert.tab_switches} tab switches`}
+                      </div>
+                    </div>
+                  </div>
+                  <IntegrityBadge score={alert.score} size="md" />
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">Students listed may require guidance or supervision.</p>
+          </div>
+        )}
 
         {/* Heatmap */}
         {students.length > 0 && allMastery.length > 0 && (
@@ -218,7 +260,6 @@ export default function TeacherDashboard() {
           </div>
         </div>
 
-        {/* Gap Insights */}
         {allInsights.length > 0 && (
           <div>
             <h2 className="text-xl font-semibold mb-4">Recent Learning Insights</h2>

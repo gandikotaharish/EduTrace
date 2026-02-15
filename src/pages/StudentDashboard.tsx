@@ -2,11 +2,13 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { MasteryRing } from "@/components/dashboard/MasteryRing";
 import { ConceptCard } from "@/components/dashboard/ConceptCard";
 import { InsightCard } from "@/components/dashboard/InsightCard";
+import { IntegrityBadge } from "@/components/integrity/IntegrityBadge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConcepts } from "@/hooks/useConcepts";
 import { useStudentMastery, useStudentInsights } from "@/hooks/useStudentData";
-import { TrendingUp, Target, BookOpen, ChevronRight } from "lucide-react";
+import { useIntegrityScore } from "@/hooks/useIntegrity";
+import { TrendingUp, Target, BookOpen, ChevronRight, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -18,6 +20,7 @@ export default function StudentDashboard() {
   const { data: concepts = [], isLoading: conceptsLoading } = useConcepts();
   const { data: studentMastery = [], isLoading: masteryLoading } = useStudentMastery();
   const { data: studentInsights = [], isLoading: insightsLoading } = useStudentInsights();
+  const { data: integrityData } = useIntegrityScore();
 
   const isLoading = conceptsLoading || masteryLoading;
 
@@ -117,6 +120,26 @@ export default function StudentDashboard() {
               {concepts.length - studentMastery.length} more to explore
             </div>
           </div>
+
+          {/* Integrity Score Card */}
+          {integrityData && (
+            <div className="evidence-card col-span-1 md:col-span-4">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm text-muted-foreground mb-1">Academic Integrity</div>
+                  <IntegrityBadge score={integrityData.score} size="md" />
+                </div>
+                <div className="text-xs text-muted-foreground space-y-0.5 text-right">
+                  {integrityData.paste_attempts > 0 && <div>{integrityData.paste_attempts} paste attempts</div>}
+                  {integrityData.tab_switches > 0 && <div>{integrityData.tab_switches} tab switches</div>}
+                  {integrityData.paste_attempts === 0 && integrityData.tab_switches === 0 && <div>Clean record ✓</div>}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Learning Insights */}
