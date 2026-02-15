@@ -240,6 +240,77 @@ export type Database = {
           },
         ]
       }
+      integrity_scores: {
+        Row: {
+          id: string
+          low_originality_count: number
+          paste_attempts: number
+          score: number
+          shallow_reflections: number
+          student_id: string
+          suspicious_entries: number
+          tab_switches: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          low_originality_count?: number
+          paste_attempts?: number
+          score?: number
+          shallow_reflections?: number
+          student_id: string
+          suspicious_entries?: number
+          tab_switches?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          low_originality_count?: number
+          paste_attempts?: number
+          score?: number
+          shallow_reflections?: number
+          student_id?: string
+          suspicious_entries?: number
+          tab_switches?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      integrity_violations: {
+        Row: {
+          concept_id: string | null
+          created_at: string
+          details: string | null
+          id: string
+          student_id: string
+          violation_type: string
+        }
+        Insert: {
+          concept_id?: string | null
+          created_at?: string
+          details?: string | null
+          id?: string
+          student_id: string
+          violation_type: string
+        }
+        Update: {
+          concept_id?: string | null
+          created_at?: string
+          details?: string | null
+          id?: string
+          student_id?: string
+          violation_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integrity_violations_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "concepts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       learning_evidence: {
         Row: {
           application_answer: string
@@ -521,6 +592,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      recalculate_integrity_score: {
+        Args: { p_student_id: string }
+        Returns: undefined
       }
     }
     Enums: {
